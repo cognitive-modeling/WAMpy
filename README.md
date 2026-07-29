@@ -1,14 +1,20 @@
 # WAMpy
 
-> Paper ... cite this..
-
 ## Installation
 
 ```console
 pip install wampy-prolog
 ```
+### Usage.
 
-## Benchmark
+WAMpy is used as a Python library rather than as a standalone Prolog interpreter.
+
+```
+import wampy as wam
+ast_program, symbol_table = wam.parse("parent(anakin, luke).")
+compiled = wam.compile(ast_program)
+wam.query_from_str(compiled, "parent(X, luke).", symbol_table)
+```
 
 ## Limitations
 
