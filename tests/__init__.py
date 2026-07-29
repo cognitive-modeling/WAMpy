@@ -1,0 +1,1 @@
+"""Wampy test package."""

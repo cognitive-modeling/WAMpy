@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wampy"
+version = "0.1.0"
+description = "tbd. Working-memory and cognitive-science models for simulation experiments."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Dominik Magiera"},
+  { name = "Lukas Roehrig"},
+  { name = "Frank Jaekel"}
+]
+keywords = [
+  "cognitive science",
+  "working memory",
+  "simulation",
+  "computational cognitive modeling"
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+  "numba",
+  "numpy",
+]
+
+[project.optional-dependencies]
+prolog = [
+  "janus-swi",
+]
+dev = [
+  "pytest",
+]

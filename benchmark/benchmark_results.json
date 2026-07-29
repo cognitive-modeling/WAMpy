@@ -1,0 +1,502 @@
+[
+    {
+        "sample": 0,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 57.125,
+        "wampy_static_query_avg_us": 30.708,
+        "wampy_dynamic_compile_avg_us": 54.708,
+        "wampy_dynamic_query_avg_us": 27.334,
+        "janus_compile_avg_us": 323.041,
+        "janus_query_avg_us": 5.375
+    },
+    {
+        "sample": 0,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 17.2375,
+        "wampy_static_query_avg_us": 5.591600000000001,
+        "wampy_dynamic_compile_avg_us": 7.6,
+        "wampy_dynamic_query_avg_us": 5.4,
+        "janus_compile_avg_us": 254.6416,
+        "janus_query_avg_us": 3.4125
+    },
+    {
+        "sample": 0,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.57916,
+        "wampy_static_query_avg_us": 3.1075,
+        "wampy_dynamic_compile_avg_us": 4.15042,
+        "wampy_dynamic_query_avg_us": 2.7575,
+        "janus_compile_avg_us": 236.62707999999998,
+        "janus_query_avg_us": 3.1396100000000002
+    },
+    {
+        "sample": 0,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.167041999999999,
+        "wampy_static_query_avg_us": 2.620125,
+        "wampy_dynamic_compile_avg_us": 3.715917,
+        "wampy_dynamic_query_avg_us": 2.596292,
+        "janus_compile_avg_us": 234.685389,
+        "janus_query_avg_us": 2.981575
+    },
+    {
+        "sample": 0,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 14.057179099999999,
+        "wampy_static_query_avg_us": 2.5826334,
+        "wampy_dynamic_compile_avg_us": 3.6243625,
+        "wampy_dynamic_query_avg_us": 2.5290625,
+        "janus_compile_avg_us": 236.01986300000002,
+        "janus_query_avg_us": 3.0361291
+    },
+    {
+        "sample": 1,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 55.709,
+        "wampy_static_query_avg_us": 50.875,
+        "wampy_dynamic_compile_avg_us": 56.291,
+        "wampy_dynamic_query_avg_us": 29.584,
+        "janus_compile_avg_us": 329.666,
+        "janus_query_avg_us": 4.417
+    },
+    {
+        "sample": 1,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 17.5625,
+        "wampy_static_query_avg_us": 5.4292,
+        "wampy_dynamic_compile_avg_us": 8.3292,
+        "wampy_dynamic_query_avg_us": 5.0458,
+        "janus_compile_avg_us": 362.1458,
+        "janus_query_avg_us": 10.6375
+    },
+    {
+        "sample": 1,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 18.96583,
+        "wampy_static_query_avg_us": 3.10167,
+        "wampy_dynamic_compile_avg_us": 4.16042,
+        "wampy_dynamic_query_avg_us": 2.79667,
+        "janus_compile_avg_us": 246.33371,
+        "janus_query_avg_us": 3.3508299999999998
+    },
+    {
+        "sample": 1,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.392459,
+        "wampy_static_query_avg_us": 2.812833,
+        "wampy_dynamic_compile_avg_us": 3.947875,
+        "wampy_dynamic_query_avg_us": 2.632834,
+        "janus_compile_avg_us": 243.610328,
+        "janus_query_avg_us": 3.233799
+    },
+    {
+        "sample": 1,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 14.2890625,
+        "wampy_static_query_avg_us": 2.5149791,
+        "wampy_dynamic_compile_avg_us": 3.6334666,
+        "wampy_dynamic_query_avg_us": 2.5475875,
+        "janus_compile_avg_us": 234.7379723,
+        "janus_query_avg_us": 2.9527669999999997
+    },
+    {
+        "sample": 2,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 51.792,
+        "wampy_static_query_avg_us": 49.708,
+        "wampy_dynamic_compile_avg_us": 57.125,
+        "wampy_dynamic_query_avg_us": 24.917,
+        "janus_compile_avg_us": 269.666,
+        "janus_query_avg_us": 3.625
+    },
+    {
+        "sample": 2,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.7166,
+        "wampy_static_query_avg_us": 4.8709,
+        "wampy_dynamic_compile_avg_us": 7.6167,
+        "wampy_dynamic_query_avg_us": 4.8917,
+        "janus_compile_avg_us": 232.0751,
+        "janus_query_avg_us": 2.9791
+    },
+    {
+        "sample": 2,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.71167,
+        "wampy_static_query_avg_us": 3.00083,
+        "wampy_dynamic_compile_avg_us": 4.15208,
+        "wampy_dynamic_query_avg_us": 2.85292,
+        "janus_compile_avg_us": 238.83789000000002,
+        "janus_query_avg_us": 3.05959
+    },
+    {
+        "sample": 2,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.060540999999999,
+        "wampy_static_query_avg_us": 2.689125,
+        "wampy_dynamic_compile_avg_us": 3.614208,
+        "wampy_dynamic_query_avg_us": 2.576167,
+        "janus_compile_avg_us": 231.545436,
+        "janus_query_avg_us": 2.8484520000000004
+    },
+    {
+        "sample": 2,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 14.005012500000001,
+        "wampy_static_query_avg_us": 2.5190083,
+        "wampy_dynamic_compile_avg_us": 3.60405,
+        "wampy_dynamic_query_avg_us": 2.5263084,
+        "janus_compile_avg_us": 240.3240274,
+        "janus_query_avg_us": 3.1378422
+    },
+    {
+        "sample": 3,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 53.709,
+        "wampy_static_query_avg_us": 47.583,
+        "wampy_dynamic_compile_avg_us": 57.125,
+        "wampy_dynamic_query_avg_us": 28.5,
+        "janus_compile_avg_us": 266.959,
+        "janus_query_avg_us": 3.916
+    },
+    {
+        "sample": 3,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.4791,
+        "wampy_static_query_avg_us": 4.9125,
+        "wampy_dynamic_compile_avg_us": 7.6625,
+        "wampy_dynamic_query_avg_us": 5.0458,
+        "janus_compile_avg_us": 235.52079999999998,
+        "janus_query_avg_us": 2.9625
+    },
+    {
+        "sample": 3,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.61167,
+        "wampy_static_query_avg_us": 2.76542,
+        "wampy_dynamic_compile_avg_us": 3.99792,
+        "wampy_dynamic_query_avg_us": 2.76208,
+        "janus_compile_avg_us": 235.68168,
+        "janus_query_avg_us": 2.88709
+    },
+    {
+        "sample": 3,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.148625,
+        "wampy_static_query_avg_us": 2.57475,
+        "wampy_dynamic_compile_avg_us": 3.751875,
+        "wampy_dynamic_query_avg_us": 2.6099580000000002,
+        "janus_compile_avg_us": 233.905517,
+        "janus_query_avg_us": 2.879714
+    },
+    {
+        "sample": 3,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 14.080575000000001,
+        "wampy_static_query_avg_us": 2.5311999999999997,
+        "wampy_dynamic_compile_avg_us": 3.6733833,
+        "wampy_dynamic_query_avg_us": 2.54735,
+        "janus_compile_avg_us": 233.98223240000002,
+        "janus_query_avg_us": 2.9244166
+    },
+    {
+        "sample": 4,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 52.625,
+        "wampy_static_query_avg_us": 46.416,
+        "wampy_dynamic_compile_avg_us": 51.791,
+        "wampy_dynamic_query_avg_us": 24.917,
+        "janus_compile_avg_us": 261.042,
+        "janus_query_avg_us": 3.625
+    },
+    {
+        "sample": 4,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.9292,
+        "wampy_static_query_avg_us": 5.0,
+        "wampy_dynamic_compile_avg_us": 7.8,
+        "wampy_dynamic_query_avg_us": 4.7458,
+        "janus_compile_avg_us": 233.6418,
+        "janus_query_avg_us": 3.0083
+    },
+    {
+        "sample": 4,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.57208,
+        "wampy_static_query_avg_us": 2.93375,
+        "wampy_dynamic_compile_avg_us": 4.20541,
+        "wampy_dynamic_query_avg_us": 2.80042,
+        "janus_compile_avg_us": 241.40043,
+        "janus_query_avg_us": 3.19125
+    },
+    {
+        "sample": 4,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.10125,
+        "wampy_static_query_avg_us": 2.567958,
+        "wampy_dynamic_compile_avg_us": 3.7811660000000002,
+        "wampy_dynamic_query_avg_us": 2.605417,
+        "janus_compile_avg_us": 231.101405,
+        "janus_query_avg_us": 2.852645
+    },
+    {
+        "sample": 4,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 13.896908400000001,
+        "wampy_static_query_avg_us": 2.5214916,
+        "wampy_dynamic_compile_avg_us": 3.6301459,
+        "wampy_dynamic_query_avg_us": 2.5214416,
+        "janus_compile_avg_us": 233.2687805,
+        "janus_query_avg_us": 2.8943118
+    },
+    {
+        "sample": 5,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 52.917,
+        "wampy_static_query_avg_us": 47.125,
+        "wampy_dynamic_compile_avg_us": 51.25,
+        "wampy_dynamic_query_avg_us": 25.584,
+        "janus_compile_avg_us": 261.291,
+        "janus_query_avg_us": 3.75
+    },
+    {
+        "sample": 5,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.6334,
+        "wampy_static_query_avg_us": 4.9416,
+        "wampy_dynamic_compile_avg_us": 7.7459,
+        "wampy_dynamic_query_avg_us": 4.8375,
+        "janus_compile_avg_us": 232.92079999999999,
+        "janus_query_avg_us": 2.9669
+    },
+    {
+        "sample": 5,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.40792,
+        "wampy_static_query_avg_us": 3.49625,
+        "wampy_dynamic_compile_avg_us": 4.41542,
+        "wampy_dynamic_query_avg_us": 3.03792,
+        "janus_compile_avg_us": 268.57041999999996,
+        "janus_query_avg_us": 3.97293
+    },
+    {
+        "sample": 5,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.891834000000001,
+        "wampy_static_query_avg_us": 2.718916,
+        "wampy_dynamic_compile_avg_us": 3.795958,
+        "wampy_dynamic_query_avg_us": 2.769375,
+        "janus_compile_avg_us": 231.432331,
+        "janus_query_avg_us": 2.868029
+    },
+    {
+        "sample": 5,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 13.8459334,
+        "wampy_static_query_avg_us": 2.5329875000000004,
+        "wampy_dynamic_compile_avg_us": 3.6279208,
+        "wampy_dynamic_query_avg_us": 2.5317958,
+        "janus_compile_avg_us": 232.00486379999998,
+        "janus_query_avg_us": 2.8754198
+    },
+    {
+        "sample": 6,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 53.25,
+        "wampy_static_query_avg_us": 50.292,
+        "wampy_dynamic_compile_avg_us": 50.875,
+        "wampy_dynamic_query_avg_us": 28.667,
+        "janus_compile_avg_us": 266.5,
+        "janus_query_avg_us": 3.625
+    },
+    {
+        "sample": 6,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.9083,
+        "wampy_static_query_avg_us": 4.9959,
+        "wampy_dynamic_compile_avg_us": 7.6791,
+        "wampy_dynamic_query_avg_us": 4.770899999999999,
+        "janus_compile_avg_us": 232.4501,
+        "janus_query_avg_us": 2.954
+    },
+    {
+        "sample": 6,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.995,
+        "wampy_static_query_avg_us": 2.9104099999999997,
+        "wampy_dynamic_compile_avg_us": 4.0820799999999995,
+        "wampy_dynamic_query_avg_us": 2.98125,
+        "janus_compile_avg_us": 237.14548000000002,
+        "janus_query_avg_us": 3.02996
+    },
+    {
+        "sample": 6,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.260583,
+        "wampy_static_query_avg_us": 2.559459,
+        "wampy_dynamic_compile_avg_us": 3.699167,
+        "wampy_dynamic_query_avg_us": 2.693458,
+        "janus_compile_avg_us": 231.057558,
+        "janus_query_avg_us": 2.846371
+    },
+    {
+        "sample": 6,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 13.9062042,
+        "wampy_static_query_avg_us": 2.5366291999999997,
+        "wampy_dynamic_compile_avg_us": 3.6549375,
+        "wampy_dynamic_query_avg_us": 2.5177792,
+        "janus_compile_avg_us": 232.2313377,
+        "janus_query_avg_us": 2.8563555000000003
+    },
+    {
+        "sample": 7,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 52.625,
+        "wampy_static_query_avg_us": 46.167,
+        "wampy_dynamic_compile_avg_us": 50.666,
+        "wampy_dynamic_query_avg_us": 26.25,
+        "janus_compile_avg_us": 263.292,
+        "janus_query_avg_us": 3.542
+    },
+    {
+        "sample": 7,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.9584,
+        "wampy_static_query_avg_us": 4.966600000000001,
+        "wampy_dynamic_compile_avg_us": 7.7625,
+        "wampy_dynamic_query_avg_us": 4.8,
+        "janus_compile_avg_us": 232.52929999999998,
+        "janus_query_avg_us": 2.904
+    },
+    {
+        "sample": 7,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.76208,
+        "wampy_static_query_avg_us": 2.79917,
+        "wampy_dynamic_compile_avg_us": 4.14333,
+        "wampy_dynamic_query_avg_us": 2.8791700000000002,
+        "janus_compile_avg_us": 248.78338,
+        "janus_query_avg_us": 3.8957800000000002
+    },
+    {
+        "sample": 7,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.109458,
+        "wampy_static_query_avg_us": 2.601042,
+        "wampy_dynamic_compile_avg_us": 3.788916,
+        "wampy_dynamic_query_avg_us": 2.602792,
+        "janus_compile_avg_us": 231.851208,
+        "janus_query_avg_us": 2.774157
+    },
+    {
+        "sample": 7,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 13.9019167,
+        "wampy_static_query_avg_us": 2.5196750000000003,
+        "wampy_dynamic_compile_avg_us": 3.6263084,
+        "wampy_dynamic_query_avg_us": 2.5131,
+        "janus_compile_avg_us": 232.4411473,
+        "janus_query_avg_us": 2.8830328
+    },
+    {
+        "sample": 8,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 51.333,
+        "wampy_static_query_avg_us": 46.167,
+        "wampy_dynamic_compile_avg_us": 50.333,
+        "wampy_dynamic_query_avg_us": 25.375,
+        "janus_compile_avg_us": 255.583,
+        "janus_query_avg_us": 3.542
+    },
+    {
+        "sample": 8,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 16.4833,
+        "wampy_static_query_avg_us": 4.908399999999999,
+        "wampy_dynamic_compile_avg_us": 7.6833,
+        "wampy_dynamic_query_avg_us": 4.8458000000000006,
+        "janus_compile_avg_us": 232.6709,
+        "janus_query_avg_us": 3.0
+    },
+    {
+        "sample": 8,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 14.51875,
+        "wampy_static_query_avg_us": 2.85167,
+        "wampy_dynamic_compile_avg_us": 4.1925,
+        "wampy_dynamic_query_avg_us": 2.85416,
+        "janus_compile_avg_us": 240.22679,
+        "janus_query_avg_us": 3.01832
+    },
+    {
+        "sample": 8,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.395334,
+        "wampy_static_query_avg_us": 2.5892910000000002,
+        "wampy_dynamic_compile_avg_us": 3.6025,
+        "wampy_dynamic_query_avg_us": 2.6734169999999997,
+        "janus_compile_avg_us": 233.485882,
+        "janus_query_avg_us": 2.806382
+    },
+    {
+        "sample": 8,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 13.903304200000001,
+        "wampy_static_query_avg_us": 2.5356416,
+        "wampy_dynamic_compile_avg_us": 3.709825,
+        "wampy_dynamic_query_avg_us": 2.5242791,
+        "janus_compile_avg_us": 239.53908429999998,
+        "janus_query_avg_us": 3.0442283000000003
+    },
+    {
+        "sample": 9,
+        "n_iterations": 1,
+        "wampy_static_compile_avg_us": 56.417,
+        "wampy_static_query_avg_us": 50.958,
+        "wampy_dynamic_compile_avg_us": 53.584,
+        "wampy_dynamic_query_avg_us": 29.791,
+        "janus_compile_avg_us": 302.291,
+        "janus_query_avg_us": 4.5
+    },
+    {
+        "sample": 9,
+        "n_iterations": 10,
+        "wampy_static_compile_avg_us": 17.754099999999998,
+        "wampy_static_query_avg_us": 5.4542,
+        "wampy_dynamic_compile_avg_us": 8.325,
+        "wampy_dynamic_query_avg_us": 5.15,
+        "janus_compile_avg_us": 256.11670000000004,
+        "janus_query_avg_us": 3.7625
+    },
+    {
+        "sample": 9,
+        "n_iterations": 100,
+        "wampy_static_compile_avg_us": 15.35791,
+        "wampy_static_query_avg_us": 3.16167,
+        "wampy_dynamic_compile_avg_us": 4.21708,
+        "wampy_dynamic_query_avg_us": 2.99708,
+        "janus_compile_avg_us": 270.0938,
+        "janus_query_avg_us": 3.8558000000000003
+    },
+    {
+        "sample": 9,
+        "n_iterations": 1000,
+        "wampy_static_compile_avg_us": 14.7755,
+        "wampy_static_query_avg_us": 2.79625,
+        "wampy_dynamic_compile_avg_us": 3.761375,
+        "wampy_dynamic_query_avg_us": 2.750125,
+        "janus_compile_avg_us": 239.381905,
+        "janus_query_avg_us": 3.064918
+    },
+    {
+        "sample": 9,
+        "n_iterations": 10000,
+        "wampy_static_compile_avg_us": 13.912475,
+        "wampy_static_query_avg_us": 2.5177042000000003,
+        "wampy_dynamic_compile_avg_us": 3.6338625,
+        "wampy_dynamic_query_avg_us": 2.5148333,
+        "janus_compile_avg_us": 232.9652929,
+        "janus_query_avg_us": 2.8793870000000004
+    }
+]
