@@ -2,6 +2,11 @@
 
 > Paper ... cite this..
 
+## Installation
+
+```console
+pip install wampy-prolog
+```
 
 ## Benchmark
 

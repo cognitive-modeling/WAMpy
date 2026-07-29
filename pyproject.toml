@@ -1,14 +1,15 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling >= 1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "wampy"
+name = "wampy-prolog"
 version = "0.1.0"
-description = "tbd. Working-memory and cognitive-science models for simulation experiments."
+description = "A Numba-accelerated Warren Abstract Machine implementation for Prolog."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
   { name = "Dominik Magiera"},
   { name = "Lukas Roehrig"},
@@ -29,6 +30,7 @@ classifiers = [
 
 dependencies = [
   "numba",
+  "numba-toolbox",
   "numpy",
 ]
 
@@ -38,4 +40,17 @@ prolog = [
 ]
 dev = [
   "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/cognitive-modeling/WAMpy"
+Issues = "https://github.com/cognitive-modeling/WAMpy/issues"
+Repository = "https://github.com/cognitive-modeling/WAMpy"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wampy"]
+
+[tool.pytest.ini_options]
+markers = [
+  "requires_numba_jit: marks tests that compile and execute Numba functions",
 ]
