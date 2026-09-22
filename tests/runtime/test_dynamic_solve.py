@@ -1,57 +1,51 @@
 import pytest
+from wampy.compiler.compiled_program import init_compiled_program
+from wampy.compiler.compiler import compile_program
+from wampy.compiler.compiler_state import init_compiler_state
+from wampy.config import DEFAULT_CONFIG
+from wampy.frontend.parser import parse
+from wampy.frontend.symbol_table import empty_symbol_table
 
-from wampy.compiler.compiler import compile, init_compiler
-from wampy.config import load_config_toml
-from wampy.frontend.parser import build_new_program
-from wampy.status import WAMStatus
-from ..test_engine import solve_from_str_ontop
-
-CONFIG_TOML = """
-[ast]
-num_terms = 80
-max_terms_nodes = 240
-max_terms_nodes_childs = 5
-
-[entry]
-max_functors = 256
-max_arity = 8
-
-[solver]
-max_steps = 10000
-"""
+from ..plunit.helpers import solve_from_str_ontop
 
 
-@pytest.fixture(scope="session")
-def wam_config():
-    return load_config_toml(CONFIG_TOML)
+def _static_context(static_src: str, config=DEFAULT_CONFIG):
+    static_program, symbol_table = parse(
+        static_src, empty_symbol_table(config.frontend.ast), config
+    )
+    compiler_state = init_compiler_state(config)
+    compiled_program = init_compiled_program(config)
+    compile_program(
+        static_program,
+        compiled_program,
+        compiler_state,
+        config,
+    )
+    return compiled_program, compiler_state, symbol_table
 
 
-def _static_context(static_src: str, config):
-    static_program, symbol_table = build_new_program(static_src, config)
-    static_state = compile(static_program, init_compiler(config), config)
-    return static_state, static_state.entry.copy(), int(static_state.pc.value), symbol_table
-
-
-def _solve_ontop(static_src: str, dynamic_src: str, query_src: str, config):
-    static_state, static_entry, static_size, symbol_table = _static_context(static_src, config)
+def _solve_ontop(
+    static_src: str,
+    dynamic_src: str,
+    query_src: str,
+    config=DEFAULT_CONFIG,
+):
+    static_compiled_program, static_state, symbol_table = _static_context(static_src, config)
     return solve_from_str_ontop(
         dynamic_src,
         query_src,
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         symbol_table,
         config,
     )
 
 
-def _assert_answers(result, expected):
-    assert result["answers"] == expected
-    assert result["n_answers"] == len(expected)
-    assert WAMStatus(int(result["status"])) == WAMStatus.EXHAUSTED
+def _assert_answers(result, expected) -> None:
+    assert result == expected
 
 
-def test_dynamic_answers_are_returned_before_static_fallback(wam_config):
+def test_dynamic_answers_are_returned_before_static_fallback() -> None:
     result = _solve_ontop(
         """
         likes(john, pizza).
@@ -62,20 +56,19 @@ def test_dynamic_answers_are_returned_before_static_fallback(wam_config):
         likes(john, sushi).
         """,
         "likes(john, X).",
-        wam_config,
     )
 
     _assert_answers(
         result,
         [
-            "likes(john, pasta).",
-            "likes(john, sushi).",
-            "likes(john, pizza).",
+            {"X": "pasta"},
+            {"X": "sushi"},
+            {"X": "pizza"},
         ],
     )
 
 
-def test_failed_dynamic_same_predicate_clauses_still_fall_through_to_static(wam_config):
+def test_failed_dynamic_same_predicate_clauses_still_fall_through_to_static():
     result = _solve_ontop(
         """
         likes(john, pizza).
@@ -86,13 +79,12 @@ def test_failed_dynamic_same_predicate_clauses_still_fall_through_to_static(wam_
         likes(mary, pizza).
         """,
         "likes(john, X).",
-        wam_config,
     )
 
-    _assert_answers(result, ["likes(john, pizza)."])
+    _assert_answers(result, [{"X": "pizza"}])
 
 
-def test_dynamic_program_can_add_new_symbol_and_then_fall_back_to_static(wam_config):
+def test_dynamic_program_can_add_new_symbol_and_then_fall_back_to_static() -> None:
     result = _solve_ontop(
         """
         likes(john, pizza).
@@ -101,13 +93,18 @@ def test_dynamic_program_can_add_new_symbol_and_then_fall_back_to_static(wam_con
         likes(peter, pizza).
         """,
         "likes(X, pizza).",
-        wam_config,
     )
 
-    _assert_answers(result, ["likes(peter, pizza).", "likes(john, pizza)."])
+    _assert_answers(
+        result,
+        [
+            {"X": "peter"},
+            {"X": "john"},
+        ],
+    )
 
 
-def test_dynamic_program_can_add_new_predicate(wam_config):
+def test_dynamic_program_can_add_new_predicate():
     result = _solve_ontop(
         """
         likes(john, pizza).
@@ -118,13 +115,18 @@ def test_dynamic_program_can_add_new_predicate(wam_config):
         dislikes(peter, pasta).
         """,
         "dislikes(peter, X).",
-        wam_config,
     )
 
-    _assert_answers(result, ["dislikes(peter, pizza).", "dislikes(peter, pasta)."])
+    _assert_answers(
+        result,
+        [
+            {"X": "pizza"},
+            {"X": "pasta"},
+        ],
+    )
 
 
-def test_single_static_clause_fallback_returns_dynamic_then_static_answer(wam_config):
+def test_single_static_clause_fallback_returns_dynamic_then_static_answer() -> None:
     result = _solve_ontop(
         """
         likes(john, pizza).
@@ -133,14 +135,19 @@ def test_single_static_clause_fallback_returns_dynamic_then_static_answer(wam_co
         likes(john, sushi).
         """,
         "likes(john, X).",
-        wam_config,
     )
 
-    _assert_answers(result, ["likes(john, sushi).", "likes(john, pizza)."])
+    _assert_answers(
+        result,
+        [
+            {"X": "sushi"},
+            {"X": "pizza"},
+        ],
+    )
 
 
-def test_dynamic_rule_can_call_static_predicate_and_fall_back_to_static_rule(wam_config):
-    result = _solve_ontop(
+def test_dynamic_rule_can_call_static_predicate_and_fall_back_to_static_rule() -> None:
+    answers = _solve_ontop(
         """
         father(ted, bob).
         mother(jane, bob).
@@ -150,18 +157,19 @@ def test_dynamic_rule_can_call_static_predicate_and_fall_back_to_static_rule(wam
         parent(X, Y) :- mother(X, Y).
         """,
         "parent(X, bob).",
-        wam_config,
     )
 
-    _assert_answers(result, ["parent(jane, bob).", "parent(ted, bob)."])
+    assert answers == [
+        {"X": "jane"},
+        {"X": "ted"},
+    ]
 
 
-def test_second_dynamic_compilation_does_not_leak_first_dynamic_program(wam_config):
-    static_state, static_entry, static_size, symbol_table = _static_context(
+def test_second_dynamic_compilation_does_not_leak_first_dynamic_program() -> None:
+    static_compiled_program, static_state, symbol_table = _static_context(
         """
         likes(john, pizza).
-        """,
-        wam_config,
+        """
     )
 
     first = solve_from_str_ontop(
@@ -169,23 +177,51 @@ def test_second_dynamic_compilation_does_not_leak_first_dynamic_program(wam_conf
         likes(peter, pizza).
         """,
         "likes(X, pizza).",
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         symbol_table,
-        wam_config,
+        DEFAULT_CONFIG,
     )
-    _assert_answers(first, ["likes(peter, pizza).", "likes(john, pizza)."])
+
+    _assert_answers(
+        first,
+        [
+            {"X": "peter"},
+            {"X": "john"},
+        ],
+    )
 
     second = solve_from_str_ontop(
         """
         dislikes(peter, pasta).
         """,
         "likes(X, pizza).",
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         symbol_table,
-        wam_config,
     )
-    _assert_answers(second, ["likes(john, pizza)."])
+
+    _assert_answers(second, [{"X": "john"}])
+
+
+def test_replacing_extension_invalidates_old_extension_only_predicates() -> None:
+    static_compiled_program, static_state, symbol_table = _static_context("likes(john, pizza).")
+
+    first = solve_from_str_ontop(
+        "dislikes(peter, pasta).",
+        "dislikes(peter, pasta).",
+        static_compiled_program,
+        static_state,
+        symbol_table,
+    )
+
+    _assert_answers(first, [{}])
+
+    with pytest.raises(RuntimeError, match="INVALID_PC"):
+        solve_from_str_ontop(
+            "likes(peter, pizza).",
+            "dislikes(peter, pasta).",
+            static_compiled_program,
+            static_state,
+            symbol_table,
+        )

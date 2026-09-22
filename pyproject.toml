@@ -7,7 +7,7 @@ name = "wampy-prolog"
 version = "0.1.0"
 description = "A Numba-accelerated Warren Abstract Machine implementation for Prolog."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
@@ -30,7 +30,6 @@ classifiers = [
 
 dependencies = [
   "numba",
-  "numba-toolbox",
   "numpy",
 ]
 
@@ -44,8 +43,9 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/cognitive-modeling/WAMpy"
-Issues = "https://github.com/cognitive-modeling/WAMpy/issues"
 Repository = "https://github.com/cognitive-modeling/WAMpy"
+Changelog = "https://github.com/cognitive-modeling/WAMpy/blob/main/CHANGELOG.md"
+Issues = "https://github.com/cognitive-modeling/WAMpy/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wampy"]

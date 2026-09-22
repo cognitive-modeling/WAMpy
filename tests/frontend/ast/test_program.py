@@ -1,110 +1,84 @@
 import numpy as np
-
-from wampy.frontend.ast.program import (
-    NONE,
-    init_ast_structure,
-    add_child_node,
-    remove_all_descendant,
-    update_usage,
-)
-
-
-def test_init_program():
-    n_terms = 2
-    max_terms_nodes = 10
-    max_terms_nodes_childs = 4
-
-    program = init_ast_structure(n_terms, max_terms_nodes, max_terms_nodes_childs)
-
-    assert program.symbol.shape == (2, 10)
-    assert program.children.shape[0] == 2
-    assert program.children.shape[1] == 10
-
-    for t in range(2):
-        assert program.free_top[t] == 9
+import pytest
+from numba import jit
+from wampy.api.ast import allocate_term as jitable_allocate_term
+from wampy.api.ast import get_term_count as jitable_get_term_count
+from wampy.config import ASTConfig, FrontendConfig, WAMConfig
+from wampy.frontend.ast.ops.analysis import get_term_capacity, get_term_count
+from wampy.frontend.ast.ops.mutation import allocate_term
+from wampy.frontend.ast.program import init_ast_program
+from wampy.frontend.ast.symbol_id import CoreSymID
 
 
-def test_add_child_node():
-    n_terms = 2
-    max_terms_nodes = 10
-    max_terms_nodes_childs = 4
+def test_init_ast_program_uses_fixed_binary_links():
+    config = WAMConfig(
+        frontend=FrontendConfig(
+            ast=ASTConfig(max_terms=2, max_nodes_per_term=10, child_block_size=4),
+        ),
+    )
+    program = init_ast_program(config)
 
-    program = init_ast_structure(n_terms, max_terms_nodes, max_terms_nodes_childs)
-    term_id = 0
+    assert program.node_symbols.shape == (2, 10)
+    assert program.node_links.shape == (2, 10, 2)
+    assert program.node_arities.shape == (2, 10)
+    assert program.variable_name_ids.shape == (2, 32)
+    assert program.variable_name_ids.dtype == np.uint16
+    assert get_term_capacity(program) == 2
+    assert get_term_count(program) == 0
+    assert program.term_count.shape == (1,)
+    assert program.term_count.dtype == np.int32
+    assert not hasattr(program, "child_block_next_ids")
+    assert not hasattr(program, "free_child_block_stack")
 
-    cid_10, ok = add_child_node(program, term_id, 0, 10)
-    assert ok
-    assert cid_10 != NONE
-    assert program.symbol[term_id, cid_10] == 10
-
-    cid_20, ok = add_child_node(program, term_id, 0, 20)
-    assert ok
-    assert program.symbol[term_id, cid_20] == 20
-
-    root_children = program.children[term_id, 0]
-    assert cid_10 in root_children
-    assert cid_20 in root_children
-
-
-def test_remove_all_descendant():
-    n_terms = 2
-    max_terms_nodes = 10
-    max_terms_nodes_childs = 4
-
-    program = init_ast_structure(n_terms, max_terms_nodes, max_terms_nodes_childs)
-    term_id = 0
-
-    cid_10, _ = add_child_node(program, term_id, 0, 10)
-    cid_20, _ = add_child_node(program, term_id, 0, 20)
-    cid_30, _ = add_child_node(program, term_id, cid_10, 30)
-    cid_31, _ = add_child_node(program, term_id, cid_30, 31)
-
-    remove_all_descendant(term_id, cid_10, program)
-
-    assert np.all(program.children[term_id, cid_10] == NONE)
-
-    root_children = program.children[term_id, 0]
-    assert cid_10 in root_children
-    assert cid_20 in root_children
+    for term_id in range(2):
+        assert program.free_node_count[term_id] == 9
 
 
-def test_block_reuse_after_deletion():
-    n_terms = 2
-    max_terms_nodes = 10
-    max_terms_nodes_childs = 4
+def test_init_ast_program_num_terms_override():
+    config = WAMConfig(
+        frontend=FrontendConfig(
+            ast=ASTConfig(max_terms=2, max_nodes_per_term=10, child_block_size=4),
+        ),
+    )
 
-    program = init_ast_structure(n_terms, max_terms_nodes, max_terms_nodes_childs)
-    term_id = 0
+    program = init_ast_program(config, num_terms=3)
 
-    cid_10, _ = add_child_node(program, term_id, 0, 10)
-    cid_20, _ = add_child_node(program, term_id, 0, 20)
-    add_child_node(program, term_id, cid_10, 30)
-
-    free_top_before = int(program.free_top[term_id])
-
-    remove_all_descendant(term_id, cid_10, program)
-
-    free_top_after = int(program.free_top[term_id])
-    assert free_top_after > free_top_before
-
-    cid_new, ok = add_child_node(program, term_id, cid_20, 99)
-    assert ok
-    assert program.symbol[term_id, cid_new] == 99
+    assert program.node_symbols.shape[0] == 3
+    assert program.node_links.shape == (3, 10, 2)
+    assert get_term_capacity(program) == 3
+    assert get_term_count(program) == 0
 
 
-def test_update_usage_overwrites_usage_rows():
-    program = init_ast_structure(4, 10, 4)
+def test_allocate_term_appends_contiguously_and_preserves_capacity():
+    program = init_ast_program(WAMConfig(), num_terms=4)
 
-    update_usage(program, np.array([1, 0, 3, 2], dtype=np.int64))
-    update_usage(program, np.array([2, 2, 0, 1], dtype=np.int64))
+    term_ids = [allocate_term(program, CoreSymID.CLAUSE) for _ in range(3)]
 
-    assert np.array_equal(program.usage, np.array([2, 2, 0, 1], dtype=np.int64))
+    assert term_ids == [0, 1, 2]
+    assert get_term_capacity(program) == 4
+    assert get_term_count(program) == 3
 
 
-def test_update_usage_handles_short_answer_row():
-    program = init_ast_structure(4, 10, 4)
-    update_usage(program, np.array([9, 9, 9, 9], dtype=np.int64))
+def test_allocate_term_capacity_failure_preserves_count():
+    program = init_ast_program(WAMConfig(), num_terms=2)
+    allocate_term(program, CoreSymID.CLAUSE)
+    allocate_term(program, CoreSymID.QUERY)
 
-    update_usage(program, np.array([5, 7], dtype=np.int64))
+    with pytest.raises(RuntimeError, match="No empty term available"):
+        allocate_term(program, CoreSymID.CLAUSE)
 
-    assert np.array_equal(program.usage, np.array([5, 7, 0, 0], dtype=np.int64))
+    assert get_term_count(program) == 2
+
+
+@pytest.mark.requires_numba_jit
+def test_term_count_and_allocation_are_callable_from_numba():
+    program = init_ast_program(WAMConfig(), num_terms=2)
+
+    @jit
+    def allocate_and_count(ast_program):
+        first = jitable_allocate_term(ast_program, CoreSymID.CLAUSE)
+        second = jitable_allocate_term(ast_program, CoreSymID.QUERY)
+        return first, second, jitable_get_term_count(ast_program)
+
+    assert allocate_and_count(program) == (0, 1, 2)
+    assert allocate_and_count.nopython_signatures

@@ -1,3 +1,7 @@
-from wampy.frontend.render import display, display_as_tree
+from wampy.frontend.render import display, display_as_tree, render
 
-__all__ = ["display_as_tree", "display"]
+__all__ = [
+    "display",
+    "display_as_tree",
+    "render",
+]

@@ -1,70 +1,76 @@
-"""
-# wam/_config.py
-DEFAULT_WAM_CONFIG = WAMConfig(
-    STACK_HEAP_SIZE=131.072,
-    STACK_TRAIL_SIZE=16384,
-    STACK_CP_SIZE=4.036,
-    STACK_UNIFY_STACK_SIZE=16384,
-    ENTRY_MAX_FUNCTORS=4.036,
-    ENTRY_MAX_ARITY=16,
-    SOLVER_ENABLE_OCCURS_CHECK=False,
-    SOLVER_MAX_STEPS=20_000,
-    MAX_X=256,
-)
-"""
+"""Typed, immutable configuration for the WAMpy subsystems."""
 
-from typing import Any, Mapping, NamedTuple, TypeVar, cast
 import tomllib
+from collections.abc import Mapping
+from typing import Any, NamedTuple, Protocol, TypeVar, cast
+
+import numpy as np
 
 
-# --- typed namedtuple configs ---
-class ASTreeConfig(NamedTuple):
-    num_terms: int = 100
-    max_terms_nodes: int = 300  # max amount of concept nodes
-    max_terms_nodes_childs: int = 5
+_SYMBOL_ID_DTYPES = {
+    "uint8": np.dtype(np.uint8),
+    "uint16": np.dtype(np.uint16),
+    "uint32": np.dtype(np.uint32),
+}
 
 
-class StackConfig(NamedTuple):
+class ASTConfig(NamedTuple):
+    """Immutable AST storage configuration."""
+
+    max_terms: int = 100
+    max_nodes_per_term: int = 300
+    child_block_size: int = 4
+    max_variables_per_term: int = 32
+    max_user_symbols: int = 256
+    symbol_id_dtype: np.dtype = np.dtype(np.uint16)
+
+
+class FrontendConfig(NamedTuple):
+    ast: ASTConfig = ASTConfig()
+
+
+class CompilerConfig(NamedTuple):
+    max_instructions: int = 4_096
+    max_hypothesis_predicate_changes: int = 16
+    max_predicates: int = 256
+    max_arity: int = 16
+    max_goal_depth: int = 256
+    max_structure_depth: int = 64
+
+
+class RuntimeConfig(NamedTuple):
+    trace: bool = False
     heap_size: int = 65_500
     trail_size: int = 8_192
-    cp_size: int = 1_024
+    choice_point_size: int = 1_024
+    environment_size: int = 8_192
     unify_stack_size: int = 8_192
+    max_x_registers: int = 16
+    max_structure_depth: int = 64
 
-
-class EntryConfig(NamedTuple):
-    max_functors: int = 256
-    max_arity: int = 4
-
-
-class SolverConfig(NamedTuple):
-    enable_occurs_check: bool = False
-    max_steps: int = 10_000
+    max_steps: int = 10_000_000
     max_unify_steps: int = 10_000
-    answer_max_answers: int = 10
-    answer_max_nodes: int = 512
-    trace: bool = False
-
-
-
-class LimitsConfig(NamedTuple):
-    max_x: int = 16
-    max_instr: int = 4_096
-    max_struct: int = 64
+    max_answers: int = 10
+    max_answer_nodes: int = 512
 
 
 class WAMConfig(NamedTuple):
-    ast: ASTreeConfig = ASTreeConfig()
-    stack: StackConfig = StackConfig()
-    entry: EntryConfig = EntryConfig()
-    solver: SolverConfig = SolverConfig()
-    limits: LimitsConfig = LimitsConfig()
+    frontend: FrontendConfig = FrontendConfig()
+    compiler: CompilerConfig = CompilerConfig()
+    runtime: RuntimeConfig = RuntimeConfig()
 
 
 def _is_namedtuple_instance(x: Any) -> bool:
     return isinstance(x, tuple) and hasattr(x, "_fields") and hasattr(x, "_replace")
 
 
-T = TypeVar("T")
+T = TypeVar(name="T")
+
+
+class _NamedTupleLike(Protocol):
+    _fields: tuple[str, ...]
+
+    def _replace(self, **changes: Any) -> Any: ...
 
 
 def _unwrap_wam_table(data: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -76,187 +82,255 @@ def _unwrap_wam_table(data: Mapping[str, Any]) -> Mapping[str, Any]:
     return cast(Mapping[str, Any], wam)
 
 
-def _merge_namedtuple(cfg: T, overrides: Mapping[str, Any]) -> T:
+def _merge_namedtuple[T](
+    cfg: T,
+    overrides: Mapping[str, Any],
+) -> T:
     if not _is_namedtuple_instance(cfg):
         raise TypeError(f"Expected namedtuple instance, got {type(cfg)}")
 
-    for k, v in overrides.items():
-        if k not in cfg._fields:  # type: ignore[attr-defined]
-            raise ValueError(f"Unknown config key: {k}")
+    named_cfg = cast(_NamedTupleLike, cfg)
 
-        cur = getattr(cfg, k)
-        if _is_namedtuple_instance(cur):
-            if not isinstance(v, Mapping):
-                raise TypeError(f"Expected table for '{k}', got {type(v)}")
-            cfg = cast(Any, cfg)._replace(**{k: _merge_namedtuple(cur, cast(Mapping[str, Any], v))})
-        else:
-            cfg = cast(Any, cfg)._replace(**{k: v})
+    for key, value in overrides.items():
+        if isinstance(named_cfg, ASTConfig) and key == "max_children_per_node":
+            if value <= 0:
+                raise ValueError("frontend.ast.max_children_per_node must be > 0")
+            cfg = cast(T, named_cfg._replace(max_children_per_node=value))
+            named_cfg = cast(_NamedTupleLike, cfg)
+            continue
+
+        if key not in named_cfg._fields:
+            raise ValueError(f"Unknown config key: {key}")
+
+        current = getattr(named_cfg, key)
+        if _is_namedtuple_instance(current):
+            if not isinstance(value, Mapping):
+                raise TypeError(f"Expected table for '{key}', got {type(value)}")
+
+            value = _merge_namedtuple(
+                current,
+                cast(Mapping[str, Any], value),
+            )
+
+        cfg = cast(T, named_cfg._replace(**{key: value}))
+        named_cfg = cast(_NamedTupleLike, cfg)
 
     return cfg
 
 
-def _validate(cfg: WAMConfig) -> None:
-    if cfg.stack.heap_size <= 0:
-        raise ValueError("stack.heap_size must be > 0")
-    if cfg.stack.trail_size <= 0:
-        raise ValueError("stack.trail_size must be > 0")
-    if cfg.stack.cp_size <= 0:
-        raise ValueError("stack.cp_size must be > 0")
-    if cfg.stack.unify_stack_size <= 0:
-        raise ValueError("stack.unify_stack_size must be > 0")
+def _validate_positive(section: str, config: Any, fields: tuple[str, ...]) -> None:
+    for field in fields:
+        if getattr(config, field) <= 0:
+            raise ValueError(f"{section}.{field} must be > 0")
 
-    if cfg.entry.max_functors <= 0:
-        raise ValueError("entry.max_functors must be > 0")
-    if cfg.entry.max_arity <= 0:
-        raise ValueError("entry.max_arity must be > 0")
 
-    if cfg.solver.max_steps <= 0:
-        raise ValueError("solver.max_steps must be > 0")
-    if cfg.solver.max_unify_steps <= 0:
-        raise ValueError("solver.max_unify_steps must be > 0")
+def resolve_symbol_id_dtype(value: Any) -> np.dtype:
+    """Resolve and validate an AST symbol storage dtype.
 
-    if cfg.limits.max_x <= 0:
-        raise ValueError("limits.max_x must be > 0")
-    if cfg.limits.max_instr <= 0:
-        raise ValueError("limits.max_instr must be > 0")
-    if cfg.limits.max_struct <= 0:
-        raise ValueError("limits.max_struct must be > 0")
+    The resolver intentionally runs at the Python/JIT boundary.  Numba code
+    receives an already allocated symbol array and never needs to interpret a
+    configuration string as a NumPy dtype.
+    """
+
+    if isinstance(value, np.dtype):
+        symbol_dtype = value
+    else:
+        try:
+            symbol_dtype = _SYMBOL_ID_DTYPES[str(value)]
+        except KeyError as error:
+            allowed = ", ".join(_SYMBOL_ID_DTYPES)
+            raise ValueError(
+                f"Unsupported symbol ID dtype {value!r}; expected one of: {allowed}",
+            ) from error
+
+    if symbol_dtype.kind != "u":
+        raise ValueError(f"Symbol ID dtype must be unsigned, got {symbol_dtype}")
+
+    if symbol_dtype not in _SYMBOL_ID_DTYPES.values():
+        allowed = ", ".join(_SYMBOL_ID_DTYPES)
+        raise ValueError(
+            f"Unsupported symbol ID dtype {symbol_dtype}; expected one of: {allowed}",
+        )
+
+    # Deliberately deferred: importing this module at config module scope
+    # enters the eager frontend package initializers and creates an import cycle.
+    from wampy.frontend.ast.symbol_id import CoreSymID  # pylint: disable=import-outside-toplevel
+
+    max_symbol_id = int(np.iinfo(int_type=symbol_dtype.name).max)
+
+    for reserved_symbol_id in CoreSymID:
+        if int(reserved_symbol_id) > max_symbol_id:
+            raise ValueError(
+                f"frontend.ast.symbol_id_dtype is too small for SymID.{reserved_symbol_id.name}",
+            )
+
+    return symbol_dtype
+
+
+def normalize_config(config: WAMConfig) -> WAMConfig:
+    """Resolve any TOML dtype strings before JIT code sees the config."""
+
+    frontend = config.frontend
+    normalized_ast = frontend.ast._replace(
+        symbol_id_dtype=resolve_symbol_id_dtype(frontend.ast.symbol_id_dtype),
+    )
+    return config._replace(
+        frontend=frontend._replace(ast=normalized_ast),
+    )
+
+
+def _validate(config: WAMConfig) -> None:
+    _validate_positive(
+        "frontend.ast",
+        config.frontend.ast,
+        (
+            "max_terms",
+            "max_nodes_per_term",
+            "child_block_size",
+            "max_variables_per_term",
+            "max_user_symbols",
+        ),
+    )
+    symbol_dtype = resolve_symbol_id_dtype(config.frontend.ast.symbol_id_dtype)
+    from wampy.frontend.ast.symbol_id import (  # pylint: disable=import-outside-toplevel
+        calculate_symbol_id_positions,
+    )
+
+    _, first_user_symbol_id = calculate_symbol_id_positions(
+        config.frontend.ast.max_variables_per_term,
+    )
+    user_symbol_id_limit = first_user_symbol_id + config.frontend.ast.max_user_symbols
+    max_symbol_id = int(np.iinfo(symbol_dtype).max)
+    if user_symbol_id_limit - 1 >= max_symbol_id:
+        raise ValueError(
+            "frontend.ast.symbol_id_dtype is too small",
+            "for the configured variable and user symbol ranges",
+        )
+    _validate_positive(
+        "compiler",
+        config.compiler,
+        (
+            "max_instructions",
+            "max_predicates",
+            "max_arity",
+            "max_goal_depth",
+            "max_structure_depth",
+        ),
+    )
+    _validate_positive(
+        "runtime",
+        config.runtime,
+        (
+            "heap_size",
+            "trail_size",
+            "choice_point_size",
+            "environment_size",
+            "unify_stack_size",
+            "max_x_registers",
+            "max_structure_depth",
+            "max_steps",
+            "max_unify_steps",
+            "max_answers",
+            "max_answer_nodes",
+        ),
+    )
+    if config.compiler.max_arity > config.runtime.max_x_registers:
+        raise ValueError("compiler.max_arity must not exceed runtime.max_x_registers")
 
 
 def load_config_toml(toml_text: str = "", base: WAMConfig | None = None) -> WAMConfig:
-    base_cfg = WAMConfig() if base is None else base
+    """Load a WAMConfig from TOML, recursively merging it into ``base``."""
+    base_config = WAMConfig() if base is None else base
 
     if not toml_text.strip():
-        _validate(base_cfg)
-        return base_cfg
+        base_config = normalize_config(base_config)
+        _validate(base_config)
+        return base_config
 
     try:
         data = tomllib.loads(toml_text)
-    except tomllib.TOMLDecodeError as e:
-        raise ValueError(f"Invalid TOML: {e}") from e
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"Invalid TOML: {error}") from error
 
-    data = _unwrap_wam_table(data)
-    cfg = _merge_namedtuple(base_cfg, data)
-    _validate(cfg)
-    return cfg
+    config = normalize_config(_merge_namedtuple(base_config, _unwrap_wam_table(data)))
+    _validate(config)
+    return config
 
 
 def apply_overrides(base: WAMConfig | None, overrides: Mapping[str, Any]) -> WAMConfig:
-    base_cfg = WAMConfig() if base is None else base
-    cfg = _merge_namedtuple(base_cfg, overrides)
-    _validate(cfg)
-    return cfg
+    """Apply nested mapping overrides to a WAMConfig."""
+    base_config = WAMConfig() if base is None else base
+    config = normalize_config(_merge_namedtuple(base_config, overrides))
+    _validate(config)
+    return config
 
 
-def debug_config(cfg: Any) -> str:
-    """
-    Dynamically render (nested) NamedTuple config as TOML.
-    - NamedTuple fields become TOML tables.
-    - Scalars become key/value pairs.
-    - Nested NamedTuples become nested tables ([a.b]).
-    """
+def debug_config(config: Any) -> str:
+    """Render a nested NamedTuple or mapping as TOML."""
 
-    def toml_value(v: Any) -> str:
-        if isinstance(v, bool):
-            return "true" if v else "false"
-        if isinstance(v, int):
-            return str(v)
-        if isinstance(v, float):
-            # basic (finite) float support
-            if v != v or v in (float("inf"), float("-inf")):
+    def toml_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, int):
+            return str(value)
+        if isinstance(value, float):
+            if value != value or value in (float("inf"), float("-inf")):
                 raise ValueError("TOML does not support NaN/Inf")
-            return repr(v)
-        if isinstance(v, str):
-            esc = (
-                v.replace("\\", "\\\\")
+            return repr(value)
+        if isinstance(value, np.dtype):
+            return toml_value(value.name)
+        if isinstance(value, str):
+            escaped = (
+                value.replace("\\", "\\\\")
                 .replace('"', '\\"')
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t")
             )
-            return f'"{esc}"'
-        if isinstance(v, (list, tuple)):
-            return "[" + ", ".join(toml_value(x) for x in v) + "]"
-        raise TypeError(f"Unsupported TOML value type: {type(v)}")
+            return f'"{escaped}"'
+        if isinstance(value, (list, tuple)):
+            return "[" + ", ".join(toml_value(item) for item in value) + "]"
+        raise TypeError(f"Unsupported TOML value type: {type(value)}")
 
-    def is_table(x: Any) -> bool:
-        return _is_namedtuple_instance(x) or isinstance(x, Mapping)
+    def is_table(value: Any) -> bool:
+        return _is_namedtuple_instance(value) or isinstance(value, Mapping)
 
-    def iter_items(obj: Any):
-        if _is_namedtuple_instance(obj) and hasattr(obj, "_asdict"):
-            return obj._asdict().items()
-        if isinstance(obj, Mapping):
-            return obj.items()
-        raise TypeError(f"Expected NamedTuple/Mapping, got {type(obj)}")
+    def iter_items(value: Any):
+        if _is_namedtuple_instance(value) and hasattr(value, "_asdict"):
+            return value._asdict().items()
+        if isinstance(value, Mapping):
+            return value.items()
+        raise TypeError(f"Expected NamedTuple/Mapping, got {type(value)}")
 
     lines: list[str] = []
 
-    def emit(obj: Any, prefix: str = "", header: bool = True) -> None:
+    def emit(value: Any, prefix: str = "", header: bool = True) -> None:
         scalars: list[tuple[str, Any]] = []
         children: list[tuple[str, Any]] = []
 
-        for k, v in iter_items(obj):
-            if is_table(v):
-                children.append((k, v))
+        for key, item in iter_items(value):
+            if is_table(item):
+                children.append((key, item))
             else:
-                scalars.append((k, v))
+                scalars.append((key, item))
 
         if header and prefix:
             lines.append(f"[{prefix}]")
 
-        for k, v in scalars:
-            lines.append(f"{k} = {toml_value(v)}")
+        for key, item in scalars:
+            lines.append(f"{key} = {toml_value(value=item)}")
 
-        # blank line after a rendered block (table or root scalars), but not before first table
         if (header and prefix) or scalars:
             lines.append("")
 
-        for k, child in children:
-            child_prefix = f"{prefix}.{k}" if prefix else k
+        for key, child in children:
+            child_prefix = f"{prefix}.{key}" if prefix else key
             emit(child, child_prefix, header=True)
 
-    emit(cfg, prefix="", header=False)
-
+    emit(config, prefix="", header=False)
     if lines and lines[-1] == "":
         lines.pop()
-
     return "\n".join(lines)
 
 
-DEFAULT_CONFIG = load_config_toml("")
-
-
-if __name__ == "__main__":
-    # defaults reflect your old DEFAULT_CONFIG
-    cfg0 = load_config_toml()
-    print(debug_config(cfg0))
-
-    from numba import jit
-
-    @jit
-    def f(cfg):
-        return cfg.stack.heap_size + cfg.entry.max_arity
-
-    print(f(cfg0))
-
-    override_toml = """
-    [stack]
-    heap_size = 131072
-
-    [entry]
-    max_arity = 16
-
-    [solver]
-    enable_occurs_check = true
-    max_steps = 50000
-    max_unify_steps = 5000
-
-    [limits]
-    max_x = 512
-    """
-    cfg1 = load_config_toml(override_toml)
-    print("-----")
-    print(debug_config(cfg1))
-
-    print("-----")
-    print(debug_config(DEFAULT_CONFIG))
+DEFAULT_CONFIG: WAMConfig = load_config_toml(toml_text="")

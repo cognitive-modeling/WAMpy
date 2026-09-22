@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use WAMpy in your research, please cite it as below."
+title: "WAMpy"
+type: software
+authors:
+  - family-names: "Magiera"
+    given-names: "Dominik"
+  - family-names: "Röhrig"
+    given-names: "Lukas"
+  - family-names: "Jaekel"
+    given-names: "Frank"
+repository-code: "https://github.com/cognitive-modeling/WAMpy"
+url: "https://pypi.org/project/wampy-prolog/"
+license: MIT

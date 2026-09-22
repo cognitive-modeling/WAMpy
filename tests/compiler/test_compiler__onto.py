@@ -1,33 +1,23 @@
 import numpy as np
 import pytest
-
-from wampy.compiler.compiler import (
+from wampy import Prolog
+from wampy.compiler.compiled_program import init_compiled_program
+from wampy.compiler.compiler import compile_program
+from wampy.compiler.compiler_state import (
     ENTRY_INVALID_PC,
-    OP,
-    compile,
-    compile_program_onto,
-    init_compiler,
+    init_compiler_state,
+    undo_hypothesis,
 )
+from wampy.compiler.opcodes import OP
+from wampy.compiler.predicates import find_predicate_slot
 from wampy.config import load_config_toml
-from wampy.frontend.ast.program import init_program
-from wampy.frontend.parser import _split_clauses, add_prolog_term, build_new_program
-from ..test_engine import extend_symbol_table_from_source
-
-CONFIG_TOML = """
-[ast]
-num_terms = 40
-max_terms_nodes = 120
-max_terms_nodes_childs = 5
-
-[entry]
-max_functors = 256
-max_arity = 8
-"""
+from wampy.frontend.parser import parse
+from wampy.frontend.symbol_table import empty_symbol_table
 
 
 @pytest.fixture(scope="session")
 def wam_config():
-    return load_config_toml(CONFIG_TOML)
+    return load_config_toml()
 
 
 def _sid(symbol_table, symbol: str) -> int:
@@ -42,30 +32,121 @@ def _arg(compiled, pc: int, arg_index: int) -> int:
     return int(compiled.code[pc, arg_index])
 
 
+def _entry_at(compiler_state, entry, symbol_id: int, arity: int) -> int:
+    predicate_slot = find_predicate_slot(compiler_state, symbol_id)
+    assert predicate_slot >= 0
+    return int(entry[predicate_slot, arity])
+
+
 def _compile_static(static_src: str, config):
-    static_program, symbol_table = build_new_program(static_src, config)
-    static_state = compile(static_program, init_compiler(config), config)
-    static_entry = static_state.entry.copy()
-    static_size = int(static_state.pc.value)
-    static_code = static_state.code[:static_size].copy()
-    return static_state, static_entry, static_size, static_code, symbol_table
+    static_program, symbol_table = parse(
+        static_src,
+        empty_symbol_table(config.frontend.ast),
+        config,
+    )
+    compiler_state = init_compiler_state(config)
+    compiled_program = init_compiled_program(config)
+    compile_program(
+        static_program,
+        compiled_program=compiled_program,
+        compiler_state=compiler_state,
+        config=config,
+    )
+    assert compiler_state.hypothesis_predicate_entry_undo_count[0] == 0
+    base_entry = compiled_program.predicate_entry.copy()
+    base_end = compiled_program.code_size[0]
+    base_code = compiled_program.code[:base_end].copy()
+
+    return (
+        compiled_program,
+        compiler_state,
+        base_entry,
+        base_end,
+        base_code,
+        symbol_table,
+    )
 
 
 def _build_dynamic_program(dynamic_src: str, symbol_table, config):
-    extend_symbol_table_from_source(symbol_table, dynamic_src)
-    dynamic_program = init_program(config)
-    for clause in _split_clauses(dynamic_src):
-        add_prolog_term(dynamic_program, clause, symbol_table)
+    dynamic_program, _ = parse(
+        dynamic_src,
+        symbol_table,
+        config,
+    )
     return dynamic_program
 
 
-def _compile_ontop(static_state, static_entry, static_size, dynamic_src, symbol_table, config):
-    dynamic_program = _build_dynamic_program(dynamic_src, symbol_table, config)
-    return compile_program_onto(static_state, static_entry, static_size, dynamic_program, config)
+def _compile_extension(
+    compiled_program,
+    compiler_state,
+    dynamic_src,
+    symbol_table,
+    config,
+):
+    dynamic_program = _build_dynamic_program(
+        dynamic_src,
+        symbol_table,
+        config,
+    )
+
+    if compiler_state.hypothesis_predicate_entry_undo_count[0] > 0:
+        undo_hypothesis(compiler_state, compiled_program)
+
+    compile_program(
+        dynamic_program,
+        compiled_program=compiled_program,
+        compiler_state=compiler_state,
+        config=config,
+    )
 
 
-def test_multi_clause_dynamic_over_multi_clause_static_emits_jmp_retry_bridge(wam_config):
-    static_state, static_entry, static_size, static_code, symbol_table = _compile_static(
+def test_compile_extension_enforces_x_register_capacity():
+    config = load_config_toml(
+        """
+        [compiler]
+        max_arity = 2
+
+        [runtime]
+        max_x_registers = 2
+        """
+    )
+
+    (
+        static_compiled_program,
+        static_state,
+        _,
+        _,
+        _,
+        symbol_table,
+    ) = _compile_static(
+        "base.",
+        config,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="X register capacity exceeded",
+    ):
+        _compile_extension(
+            static_compiled_program,
+            static_state,
+            "q((((a, b), c), d)).",
+            symbol_table,
+            config,
+        )
+
+
+def test_multi_clause_dynamic_over_multi_clause_static_emits_jmp_retry_bridge(
+    wam_config,
+):
+    (
+        static_compiled_program,
+        static_state,
+        base_entry,
+        base_end,
+        base_code,
+        symbol_table,
+    ) = _compile_static(
         """
         likes(john, pizza).
         likes(mary, sushi).
@@ -73,67 +154,136 @@ def test_multi_clause_dynamic_over_multi_clause_static_emits_jmp_retry_bridge(wa
         wam_config,
     )
 
-    compiled = _compile_ontop(
+    _compile_extension(
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         """
         likes(john, pasta).
+        marker(a).
         likes(john, sushi).
         """,
         symbol_table,
         wam_config,
     )
+    compiled = static_compiled_program
 
     likes_id = _sid(symbol_table, "likes")
-    assert np.array_equal(compiled.code[:static_size], static_code)
-    assert compiled.entry[likes_id, 2] == static_size
 
-    first_dynamic_prefix = static_size
+    assert np.array_equal(
+        compiled.code[:base_end],
+        base_code,
+    )
+    assert (
+        _entry_at(
+            static_state,
+            compiled.predicate_entry,
+            likes_id,
+            2,
+        )
+        == base_end
+    )
+
+    first_dynamic_prefix = base_end
     second_dynamic_prefix = int(compiled.code[first_dynamic_prefix, 1])
     bridge_pc = int(compiled.code[second_dynamic_prefix, 1])
-    static_prefix_pc = int(static_entry[likes_id, 2])
+    static_prefix_pc = _entry_at(
+        static_state,
+        base_entry,
+        likes_id,
+        2,
+    )
 
-    assert _op(compiled, first_dynamic_prefix) == OP.TRY
-    assert _op(compiled, second_dynamic_prefix) == OP.RETRY
+    assert _op(compiled, first_dynamic_prefix) == OP.TRY_ME_ELSE
+    assert _op(compiled, second_dynamic_prefix) == OP.RETRY_ME_ELSE
+    assert _arg(compiled, first_dynamic_prefix, 2) == 0
+    assert _arg(compiled, second_dynamic_prefix, 2) == 0
     assert _op(compiled, bridge_pc) == OP.JMP_RETRY
     assert _arg(compiled, bridge_pc, 1) == static_prefix_pc + 1
     assert _arg(compiled, bridge_pc, 2) == int(compiled.code[static_prefix_pc, 1])
 
+    likes_slot = find_predicate_slot(static_state, likes_id)
+    marker_id = _sid(symbol_table, "marker")
+    marker_slot = find_predicate_slot(static_state, marker_id)
+    assert static_state.hypothesis_predicate_entry_undo_count[0] == 2
+    assert tuple(static_state.hypothesis_predicate_entry_undo[0]) == (
+        likes_slot,
+        2,
+        static_prefix_pc,
+    )
+    assert tuple(static_state.hypothesis_predicate_entry_undo[1]) == (
+        marker_slot,
+        1,
+        ENTRY_INVALID_PC,
+    )
 
-def test_single_dynamic_clause_over_single_static_clause_emits_jmp_trust_bridge(wam_config):
-    static_state, static_entry, static_size, static_code, symbol_table = _compile_static(
+
+def test_single_dynamic_clause_over_single_static_clause_emits_jmp_trust_bridge(
+    wam_config,
+):
+    (
+        static_compiled_program,
+        static_state,
+        base_entry,
+        base_end,
+        base_code,
+        symbol_table,
+    ) = _compile_static(
         """
         likes(john, pizza).
         """,
         wam_config,
     )
 
-    compiled = _compile_ontop(
+    _compile_extension(
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         """
         likes(john, sushi).
         """,
         symbol_table,
         wam_config,
     )
+    compiled = static_compiled_program
 
     likes_id = _sid(symbol_table, "likes")
-    static_clause_pc = int(static_entry[likes_id, 2])
-    first_dynamic_prefix = static_size
+    static_clause_pc = _entry_at(
+        static_state,
+        base_entry,
+        likes_id,
+        2,
+    )
+    first_dynamic_prefix = base_end
     bridge_pc = int(compiled.code[first_dynamic_prefix, 1])
 
-    assert np.array_equal(compiled.code[:static_size], static_code)
-    assert compiled.entry[likes_id, 2] == static_size
-    assert _op(compiled, first_dynamic_prefix) == OP.TRY
+    assert np.array_equal(
+        compiled.code[:base_end],
+        base_code,
+    )
+    assert (
+        _entry_at(
+            static_state,
+            compiled.predicate_entry,
+            likes_id,
+            2,
+        )
+        == base_end
+    )
+    assert _op(compiled, first_dynamic_prefix) == OP.TRY_ME_ELSE
     assert _op(compiled, bridge_pc) == OP.JMP_TRUST
     assert _arg(compiled, bridge_pc, 1) == static_clause_pc
 
 
-def test_single_dynamic_clause_over_multi_static_clause_emits_jmp_retry_bridge(wam_config):
-    static_state, static_entry, static_size, _, symbol_table = _compile_static(
+def test_single_dynamic_clause_over_multi_static_clause_emits_jmp_retry_bridge(
+    wam_config,
+):
+    (
+        static_compiled_program,
+        static_state,
+        base_entry,
+        base_end,
+        _,
+        symbol_table,
+    ) = _compile_static(
         """
         likes(john, pizza).
         likes(mary, sushi).
@@ -141,41 +291,62 @@ def test_single_dynamic_clause_over_multi_static_clause_emits_jmp_retry_bridge(w
         wam_config,
     )
 
-    compiled = _compile_ontop(
+    _compile_extension(
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         """
         likes(peter, pizza).
         """,
         symbol_table,
         wam_config,
     )
+    compiled = static_compiled_program
 
     likes_id = _sid(symbol_table, "likes")
-    first_dynamic_prefix = static_size
+    first_dynamic_prefix = base_end
     bridge_pc = int(compiled.code[first_dynamic_prefix, 1])
-    static_prefix_pc = int(static_entry[likes_id, 2])
+    static_prefix_pc = _entry_at(
+        static_state,
+        base_entry,
+        likes_id,
+        2,
+    )
 
-    assert compiled.entry[likes_id, 2] == static_size
-    assert _op(compiled, first_dynamic_prefix) == OP.TRY
+    assert (
+        _entry_at(
+            static_state,
+            compiled.predicate_entry,
+            likes_id,
+            2,
+        )
+        == base_end
+    )
+    assert _op(compiled, first_dynamic_prefix) == OP.TRY_ME_ELSE
     assert _op(compiled, bridge_pc) == OP.JMP_RETRY
     assert _arg(compiled, bridge_pc, 1) == static_prefix_pc + 1
     assert _arg(compiled, bridge_pc, 2) == int(compiled.code[static_prefix_pc, 1])
 
 
-def test_new_dynamic_predicate_has_no_static_bridge_and_keeps_static_entries(wam_config):
-    static_state, static_entry, static_size, _, symbol_table = _compile_static(
+def test_new_dynamic_predicate_has_no_static_bridge_and_keeps_static_entries(
+    wam_config,
+):
+    (
+        static_compiled_program,
+        static_state,
+        base_entry,
+        base_end,
+        _,
+        symbol_table,
+    ) = _compile_static(
         """
         likes(john, pizza).
         """,
         wam_config,
     )
 
-    compiled = _compile_ontop(
+    _compile_extension(
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         """
         dislikes(peter, pizza).
         dislikes(peter, pasta).
@@ -183,22 +354,230 @@ def test_new_dynamic_predicate_has_no_static_bridge_and_keeps_static_entries(wam
         symbol_table,
         wam_config,
     )
+    compiled = static_compiled_program
 
     likes_id = _sid(symbol_table, "likes")
     dislikes_id = _sid(symbol_table, "dislikes")
-    dislikes_entry = int(compiled.entry[dislikes_id, 2])
-    dynamic_ops = [OP(int(row[0])) for row in compiled.code[static_size : compiled.pc.value]]
 
-    assert compiled.entry[likes_id, 2] == static_entry[likes_id, 2]
-    assert dislikes_entry == static_size
-    assert dynamic_ops[0] == OP.TRY
-    assert OP.TRUST in dynamic_ops
+    dislikes_entry = _entry_at(
+        static_state,
+        compiled.predicate_entry,
+        dislikes_id,
+        2,
+    )
+
+    dynamic_ops = [OP(int(row[0])) for row in compiled.code[base_end : compiled.code_size[0]]]
+
+    assert _entry_at(
+        static_state,
+        compiled.predicate_entry,
+        likes_id,
+        2,
+    ) == _entry_at(
+        static_state,
+        base_entry,
+        likes_id,
+        2,
+    )
+    assert dislikes_entry == base_end
+    assert dynamic_ops == [
+        OP.TRY_ME_ELSE,
+        OP.GET_CONST,
+        OP.GET_CONST,
+        OP.PROCEED,
+        OP.TRUST_ME_ELSE_FAIL,
+        OP.GET_CONST,
+        OP.GET_CONST,
+        OP.PROCEED,
+    ]
     assert OP.JMP_RETRY not in dynamic_ops
     assert OP.JMP_TRUST not in dynamic_ops
 
+    dislikes_slot = find_predicate_slot(static_state, dislikes_id)
+    assert static_state.hypothesis_predicate_entry_undo_count[0] == 1
+    assert tuple(static_state.hypothesis_predicate_entry_undo[0]) == (
+        dislikes_slot,
+        2,
+        ENTRY_INVALID_PC,
+    )
 
-def test_dynamic_rule_over_static_rule_uses_bridge_after_dynamic_rule_body(wam_config):
-    static_state, static_entry, static_size, _, symbol_table = _compile_static(
+
+def test_interleaved_hypothesis_groups_preserve_solution_order_and_undo(wam_config):
+    prolog = Prolog(
+        """
+        p(base1).
+        p(base2).
+        q(baseq).
+        """,
+        wam_config,
+    )
+    extension, prolog.symbol_table = parse(
+        """
+        p(ext1).
+        q(extq).
+        p(ext2).
+        """,
+        prolog.symbol_table,
+        wam_config,
+    )
+
+    compile_program(
+        extension,
+        prolog.compiled_program,
+        prolog.compiler_state,
+        wam_config,
+    )
+
+    assert prolog.query_all("p(X).") == [
+        {"X": "ext1"},
+        {"X": "ext2"},
+        {"X": "base1"},
+        {"X": "base2"},
+    ]
+    assert prolog.query_all("q(X).") == [{"X": "extq"}, {"X": "baseq"}]
+
+    undo_hypothesis(prolog.compiler_state, prolog.compiled_program)
+
+    assert prolog.query_all("p(X).") == [{"X": "base1"}, {"X": "base2"}]
+    assert prolog.query_all("q(X).") == [{"X": "baseq"}]
+
+
+def test_undo_hypothesis_restores_an_extension_only_predicate_entry(wam_config):
+    prolog = Prolog("p(base).", wam_config)
+    extension, prolog.symbol_table = parse(
+        """
+        h(a).
+        h(b).
+        """,
+        prolog.symbol_table,
+        wam_config,
+    )
+
+    compile_program(
+        extension,
+        prolog.compiled_program,
+        prolog.compiler_state,
+        wam_config,
+    )
+
+    h_slot = find_predicate_slot(prolog.compiler_state, _sid(prolog.symbol_table, "h"))
+    assert prolog.query_all("h(X).") == [{"X": "a"}, {"X": "b"}]
+
+    undo_hypothesis(prolog.compiler_state, prolog.compiled_program)
+
+    assert h_slot >= 0
+    assert prolog.compiled_program.predicate_entry[h_slot, 1] == ENTRY_INVALID_PC
+
+
+def test_undo_hypothesis_replays_sparse_entry_log_and_resets_only_count(wam_config):
+    (
+        compiled,
+        compiler_state,
+        base_entry,
+        base_end,
+        _,
+        symbol_table,
+    ) = _compile_static("likes(john, pizza).", wam_config)
+
+    _compile_extension(
+        compiled,
+        compiler_state,
+        "likes(john, sushi).",
+        symbol_table,
+        wam_config,
+    )
+
+    likes_id = _sid(symbol_table, "likes")
+    likes_slot = find_predicate_slot(compiler_state, likes_id)
+    undo_row = tuple(compiler_state.hypothesis_predicate_entry_undo[0])
+    assert compiler_state.hypothesis_predicate_entry_undo_count[0] == 1
+
+    undo_hypothesis(compiler_state, compiled)
+
+    assert compiler_state.hypothesis_predicate_entry_undo_count[0] == 0
+    assert tuple(compiler_state.hypothesis_predicate_entry_undo[0]) == undo_row
+    assert compiled.code_size[0] == base_end
+    assert int(compiled.predicate_entry[likes_slot, 2]) == int(base_entry[likes_slot, 2])
+
+
+def test_compile_program_requires_undo_before_replacing_an_installed_hypothesis(wam_config):
+    compiled, compiler_state, _, _, _, symbol_table = _compile_static(
+        "p(a).",
+        wam_config,
+    )
+
+    _compile_extension(
+        compiled,
+        compiler_state,
+        "p(b).",
+        symbol_table,
+        wam_config,
+    )
+    first_hypothesis_end = int(compiled.code_size[0])
+
+    second_program = _build_dynamic_program("p(c).", symbol_table, wam_config)
+    with pytest.raises(
+        ValueError,
+        match="undo_hypothesis\\(\\) must be called",
+    ):
+        compile_program(
+            second_program,
+            compiled_program=compiled,
+            compiler_state=compiler_state,
+            config=wam_config,
+        )
+
+    assert compiled.code_size[0] == first_hypothesis_end
+    assert compiler_state.hypothesis_predicate_entry_undo_count[0] == 1
+
+    undo_hypothesis(compiler_state, compiled)
+    compile_program(
+        second_program,
+        compiled_program=compiled,
+        compiler_state=compiler_state,
+        config=wam_config,
+    )
+
+    assert compiled.code_size[0] == first_hypothesis_end
+    assert compiler_state.hypothesis_predicate_entry_undo_count[0] == 1
+
+
+def test_hypothesis_entry_undo_log_enforces_configured_capacity():
+    config = load_config_toml(
+        """
+        [compiler]
+        max_hypothesis_predicate_changes = 1
+        """
+    )
+    compiled, compiler_state, _, _, _, symbol_table = _compile_static(
+        "p(a). q(a).",
+        config,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="max_hypothesis_predicate_changes is too small",
+    ):
+        _compile_extension(
+            compiled,
+            compiler_state,
+            "p(b). q(b).",
+            symbol_table,
+            config,
+        )
+
+
+def test_dynamic_rule_over_static_rule_uses_bridge_after_dynamic_rule_body(
+    wam_config,
+):
+    (
+        static_compiled_program,
+        static_state,
+        base_entry,
+        base_end,
+        _,
+        symbol_table,
+    ) = _compile_static(
         """
         father(ted, bob).
         mother(jane, bob).
@@ -207,39 +586,61 @@ def test_dynamic_rule_over_static_rule_uses_bridge_after_dynamic_rule_body(wam_c
         wam_config,
     )
 
-    compiled = _compile_ontop(
+    _compile_extension(
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         """
         parent(X, Y) :- mother(X, Y).
         """,
         symbol_table,
         wam_config,
     )
+    compiled = static_compiled_program
 
     parent_id = _sid(symbol_table, "parent")
-    parent_entry = int(compiled.entry[parent_id, 2])
+
+    parent_entry = _entry_at(
+        static_state,
+        compiled.predicate_entry,
+        parent_id,
+        2,
+    )
+
     bridge_pc = int(compiled.code[parent_entry, 1])
-    static_parent_entry = int(static_entry[parent_id, 2])
+
+    static_parent_entry = _entry_at(
+        static_state,
+        base_entry,
+        parent_id,
+        2,
+    )
+
     dynamic_ops = [OP(int(row[0])) for row in compiled.code[parent_entry:bridge_pc]]
 
-    assert parent_entry == static_size
+    assert parent_entry == base_end
     assert dynamic_ops == [
-        OP.TRY,
+        OP.TRY_ME_ELSE,
         OP.GET_VAR,
         OP.GET_VAR,
         OP.PUT_VAL,
         OP.PUT_VAL,
         OP.EXECUTE,
-        OP.PROCEED,
     ]
     assert _op(compiled, bridge_pc) == OP.JMP_TRUST
     assert _arg(compiled, bridge_pc, 1) == static_parent_entry
 
 
-def test_recompiling_ontop_restores_static_entries_and_overwrites_old_dynamic_program(wam_config):
-    static_state, static_entry, static_size, _, symbol_table = _compile_static(
+def test_recompiling_extension_restores_base_entries_and_replaces_previous_extension(
+    wam_config,
+):
+    (
+        base_compiled_program,
+        base_state,
+        base_entry,
+        base_end,
+        base_code,
+        symbol_table,
+    ) = _compile_static(
         """
         likes(john, pizza).
         likes(mary, sushi).
@@ -247,64 +648,123 @@ def test_recompiling_ontop_restores_static_entries_and_overwrites_old_dynamic_pr
         wam_config,
     )
 
-    _compile_ontop(
-        static_state,
-        static_entry,
-        static_size,
+    _compile_extension(
+        base_compiled_program,
+        base_state,
         """
         likes(peter, pizza).
         """,
         symbol_table,
         wam_config,
     )
-    first_dynamic_pc = int(static_state.pc.value)
 
-    compiled = _compile_ontop(
-        static_state,
-        static_entry,
-        static_size,
+    first_dynamic_pc = int(base_state.pc[0])
+
+    _compile_extension(
+        base_compiled_program,
+        base_state,
         """
         dislikes(peter, pasta).
         """,
         symbol_table,
         wam_config,
     )
+    compiled = base_compiled_program
 
     likes_id = _sid(symbol_table, "likes")
     dislikes_id = _sid(symbol_table, "dislikes")
 
-    assert first_dynamic_pc > static_size
+    assert first_dynamic_pc > base_end
+    assert base_state.pc_onto[0] == base_end
+
+    assert np.array_equal(
+        compiled.code[:base_end],
+        base_code,
+    )
+
+    assert _entry_at(
+        base_state,
+        compiled.predicate_entry,
+        likes_id,
+        2,
+    ) == _entry_at(
+        base_state,
+        base_entry,
+        likes_id,
+        2,
+    )
+
     assert (
-        compiled.entry[likes_id, 2] == static_entry[likes_id, 2]
-    )  ## Checks that the static predicate likes/2 still points to static entry point
-    assert (
-        compiled.entry[dislikes_id, 2] == static_size
-    )  ## Checks that the dynamic predicate dislikes/2 starts at static_size
-    assert int(compiled.pc.value) < first_dynamic_pc
-    assert np.all(compiled.clause_entry_term[compiled.pc.value :] == -1)
+        _entry_at(
+            base_state,
+            compiled.predicate_entry,
+            dislikes_id,
+            2,
+        )
+        == base_end
+    )
+
+    assert compiled.code_size[0] < first_dynamic_pc
 
 
-def test_dynamic_predicate_arity_does_not_shadow_static_same_name_other_arity(wam_config):
-    static_state, static_entry, static_size, _, symbol_table = _compile_static(
+def test_dynamic_predicate_arity_does_not_shadow_static_same_name_other_arity(
+    wam_config,
+):
+    (
+        static_compiled_program,
+        static_state,
+        base_entry,
+        base_end,
+        _,
+        symbol_table,
+    ) = _compile_static(
         """
         p(a).
         """,
         wam_config,
     )
 
-    compiled = _compile_ontop(
+    _compile_extension(
+        static_compiled_program,
         static_state,
-        static_entry,
-        static_size,
         """
         p(a, b).
         """,
         symbol_table,
         wam_config,
     )
+    compiled = static_compiled_program
 
     p_id = _sid(symbol_table, "p")
 
-    assert compiled.entry[p_id, 1] == static_entry[p_id, 1]
-    assert compiled.entry[p_id, 2] == static_size
-    assert compiled.entry[p_id, 0] == ENTRY_INVALID_PC
+    assert _entry_at(
+        static_state,
+        compiled.predicate_entry,
+        p_id,
+        1,
+    ) == _entry_at(
+        static_state,
+        base_entry,
+        p_id,
+        1,
+    )
+
+    assert (
+        _entry_at(
+            static_state,
+            compiled.predicate_entry,
+            p_id,
+            2,
+        )
+        == base_end
+    )
+
+    assert (
+        _entry_at(
+            static_state,
+            compiled.predicate_entry,
+            p_id,
+            0,
+        )
+        == ENTRY_INVALID_PC
+    )

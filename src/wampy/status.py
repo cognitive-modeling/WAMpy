@@ -20,6 +20,7 @@ class WAMStatus(IntEnum):
     ENVIRONMENT_OVERFLOW = 203
     STEP_LIMIT = 204
     UNIFY_STEP_LIMIT = 205
+    DEPTH_LIMIT = 206
 
     # Internal / consistency errors (should never happen)
     INVALID_OPCODE = 300

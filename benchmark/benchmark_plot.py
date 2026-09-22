@@ -1,13 +1,19 @@
 import json
 from collections import defaultdict
+from pathlib import Path
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.colors import to_rgb
 
-plt.style.use(["publications/base.mplstyle"])
+# use default publication style if available
+style_path = Path(__file__).resolve().parents[3] / "publications/base.mplstyle"
+if style_path.is_file():
+    plt.style.use([style_path])
+else:
+    plt.style.use(["default"])
 
-with open("packages/wampy/benchmark/benchmark_results.json", "r") as f:
+with Path(__file__).with_name("benchmark_results.json").open() as f:
     raw_results = json.load(f)
 
 
@@ -115,7 +121,7 @@ def speedup_std(baseline, baseline_std, candidate, candidate_std):
 
 
 def add_horizontal_bar_labels(ax, bars, vals, errs=None):
-    for i, (bar, value) in enumerate(zip(bars, vals)):
+    for i, (bar, value) in enumerate(zip(bars, vals, strict=True)):
         if np.isnan(value):
             continue
 
@@ -179,7 +185,7 @@ janus_query_std = values("janus_query_std_us")
 
 print("\nQuery times [µs]")
 print("--------------------------------")
-print(f"{'iterations':>10} | " f"{'janus_swi':>18} | " f"{'WAMpy static':>18} | " f"{'WAMpy dynamic':>18}")
+print(f"{'iterations':>10} | {'janus_swi':>18} | {'WAMpy static':>18} | {'WAMpy dynamic':>18}")
 print("-" * 79)
 
 for label, j, j_std, s, s_std, d, d_std in zip(
@@ -190,9 +196,13 @@ for label, j, j_std, s, s_std, d, d_std in zip(
     static_query_std,
     dynamic_query,
     dynamic_query_std,
+    strict=True,
 ):
     print(
-        f"{label:>10} | " f"{j:>7.2f} ± {j_std:<7.2f} | " f"{s:>7.2f} ± {s_std:<7.2f} | " f"{d:>7.2f} ± {d_std:<7.2f}"
+        f"{label:>10} | "
+        f"{j:>7.2f} ± {j_std:<7.2f} | "
+        f"{s:>7.2f} ± {s_std:<7.2f} | "
+        f"{d:>7.2f} ± {d_std:<7.2f}"
     )
 
 print("-" * 79)
@@ -202,7 +212,7 @@ print("-" * 79)
 
 print("\nCompilation times [µs]")
 print("--------------------------------")
-print(f"{'iterations':>10} | " f"{'janus_swi':>18} | " f"{'WAMpy static':>18} | " f"{'WAMpy dynamic':>18}")
+print(f"{'iterations':>10} | {'janus_swi':>18} | {'WAMpy static':>18} | {'WAMpy dynamic':>18}")
 print("-" * 79)
 
 for label, j, j_std, s, s_std, d, d_std in zip(
@@ -213,9 +223,13 @@ for label, j, j_std, s, s_std, d, d_std in zip(
     static_compile_std,
     dynamic_compile,
     dynamic_compile_std,
+    strict=True,
 ):
     print(
-        f"{label:>10} | " f"{j:>7.2f} ± {j_std:<7.2f} | " f"{s:>7.2f} ± {s_std:<7.2f} | " f"{d:>7.2f} ± {d_std:<7.2f}"
+        f"{label:>10} | "
+        f"{j:>7.2f} ± {j_std:<7.2f} | "
+        f"{s:>7.2f} ± {s_std:<7.2f} | "
+        f"{d:>7.2f} ± {d_std:<7.2f}"
     )
 
 print("-" * 79)
@@ -234,7 +248,7 @@ janus_total_std = np.sqrt(np.square(janus_compile_std) + np.square(janus_query_s
 
 print("\nEnd-to-end times [µs]")
 print("--------------------------------")
-print(f"{'iterations':>10} | " f"{'janus_swi':>18} | " f"{'WAMpy static':>18} | " f"{'WAMpy dynamic':>18}")
+print(f"{'iterations':>10} | {'janus_swi':>18} | {'WAMpy static':>18} | {'WAMpy dynamic':>18}")
 print("-" * 79)
 
 for label, j, j_std, s, s_std, d, d_std in zip(
@@ -245,9 +259,13 @@ for label, j, j_std, s, s_std, d, d_std in zip(
     static_total_std,
     dynamic_total,
     dynamic_total_std,
+    strict=True,
 ):
     print(
-        f"{label:>10} | " f"{j:>7.2f} ± {j_std:<7.2f} | " f"{s:>7.2f} ± {s_std:<7.2f} | " f"{d:>7.2f} ± {d_std:<7.2f}"
+        f"{label:>10} | "
+        f"{j:>7.2f} ± {j_std:<7.2f} | "
+        f"{s:>7.2f} ± {s_std:<7.2f} | "
+        f"{d:>7.2f} ± {d_std:<7.2f}"
     )
 
 print("-" * 79)

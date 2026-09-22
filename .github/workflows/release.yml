@@ -7,6 +7,11 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: wampy-release
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   build:
     name: Build and verify distribution
@@ -80,3 +85,64 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-tutorials:
+    name: Publish interactive tutorials
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install Jupytext
+        run: python -m pip install "jupytext>=1.17,<2"
+
+      - name: Generate notebooks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output_dir="${RUNNER_TEMP}/wampy-tutorials"
+          mkdir -p "${output_dir}"
+          cp tutorials/README.md "${output_dir}/README.md"
+
+          generated=0
+          for source in tutorials/*.nb.py; do
+            if [[ ! -s "${source}" ]]; then
+              continue
+            fi
+
+            name="$(basename "${source}" .nb.py)"
+            python -m jupytext \
+              --from py:percent \
+              --to ipynb \
+              --output "${output_dir}/${name}.ipynb" \
+              "${source}"
+            generated=$((generated + 1))
+          done
+
+          if [[ "${generated}" -eq 0 ]]; then
+            echo "No non-empty tutorial sources were found." >&2
+            exit 1
+          fi
+
+      - name: Replace generated tutorials branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan tutorial-publication
+          cp -R "${RUNNER_TEMP}/wampy-tutorials/." .
+          git add --all
+          git commit -m "Publish tutorials for ${GITHUB_REF_NAME}"
+          git push --force origin HEAD:tutorials
