@@ -22,7 +22,7 @@ pip install wampy-prolog
 ## Tutorials
 
 - 01 Introduction [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cognitive-modeling/WAMpy/blob/tutorials/01_Introduction.ipynb)
-- 02 Using JIT [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cognitive-modeling/WAMpy/blob/tutorials/02_using_jit.ipynb)
+- 02 Using JIT [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cognitive-modeling/WAMpy/blob/tutorials/02_Using_JIT.ipynb)
 
 
 ### Usage.
